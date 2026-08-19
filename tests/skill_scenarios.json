@@ -78,5 +78,19 @@
       "Use get_viewport_screenshot only when",
       "Avoid repeated screenshots"
     ]
+  },
+  {
+    "id": "layout_post_pass",
+    "prompt": "搭完这组节点后，把布局强制格式化：不重叠、不回线、Group Input 就近单线、多入线不交叉。",
+    "live_state": true,
+    "required_phrases": [
+      "layout post pass",
+      "no two nodes or frames",
+      "strictly less than",
+      "exactly one outgoing link",
+      "no more than about 250 px",
+      "top to bottom",
+      "restructure the graph first"
+    ]
   }
 ]

@@ -103,6 +103,7 @@ class BlenderMcpSkillTests(unittest.TestCase):
             "asset_import",
             "conceptual_question",
             "disconnected_blender",
+            "layout_post_pass",
             "live_object_inspection",
             "localized_node_edit",
             "python_fallback",
@@ -143,6 +144,22 @@ class BlenderMcpSkillTests(unittest.TestCase):
         self.assertIn("call release_blender_instance", guidance)
         self.assertIn("read-only work", guidance)
         self.assertIn("failure or early-stop handoffs", guidance)
+
+    def test_layout_post_pass_hard_constraints(self):
+        guidance = self.canonical_guidance().lower()
+        for required in (
+            "layout post pass",
+            "no two nodes or frames",
+            "strictly less than the target node center x",
+            "exactly one outgoing link",
+            "no more than about 250 px",
+            "top to bottom",
+            "fix every violation",
+            "restructure the graph first",
+            "never deliver a graph with a violating layout",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, guidance)
 
 
 class McpGuidanceTests(unittest.TestCase):

@@ -48,6 +48,7 @@ Do not call every status or inspection tool preemptively. Let the requested outc
 - Validate a node patch before applying it. Keep transactional backups unless the user explicitly prefers otherwise.
 - Prefer modify_verify_save when the task benefits from candidate-count assertions and the user has stated a save policy; its default remains unsaved.
 - Read back the affected object or targeted subgraph after mutation.
+- After any patch that adds nodes or links, run the mandatory layout post pass and fix every violation before declaring the graph done (references/node-workflows.md, "Layout post pass").
 - Before sending the final response for any live Blender task, call release_blender_instance if this MCP process selected or claimed an instance. Release after read-only work as well as mutation, and also before failure or early-stop handoffs, since a claim taken to read still holds the lock until it is released or expires. If release cannot reach Blender, report that the lease will expire as a fallback. The viewport border marks the instance as AI-occupied for the life of the claim, and a Node Editor joins it once the AI writes that kind of tree; neither is an input lock.
 - Use get_viewport_screenshot only when appearance or spatial composition materially affects success. A screenshot is not a substitute for structured verification.
 - Do not save, overwrite, or change the path of a .blend file unless the user asked for that outcome.

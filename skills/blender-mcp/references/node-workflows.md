@@ -99,15 +99,32 @@ For Geometry-specific tools, use get_geometry_node_tree_index and export_geometr
 6. Require valid=true, inspect diagnostics and semantic diff, and confirm that the plan matches the request.
 7. Call the matching apply tool with keep_backup=true unless the user declines a backup.
 8. Read back the changed nodes plus one-hop neighbors and compare the new revision and intended connections.
+9. When the patch added nodes or links, run the layout post pass before declaring the graph done.
 
 For a single guarded sequence, use modify_verify_save with the same Patch plus
 bounded assertions over node_count, link_count, or interface_item_count. Keep
 save_policy=never unless the user asked to save; on_success saves an existing
 file after verification, while required rejects an Untitled file before mutation.
 
-Use add_dynamic_item, remove_dynamic_item, and set_dynamic_item only on collections reported by the live node schema. Prefer add_foreach_zone and add_closure_zone over constructing paired zone nodes manually. Blender-version rejection is authoritative and the transaction must leave the original tree unchanged.
+Use add_dynamic_item, remove_dynamic_item, and set_dynamic_item only on collections reported by the live node schema. Prefer the paired-zone ops (add_repeat_zone, add_foreach_zone, add_closure_zone, add_simulation_zone) over constructing paired zone nodes manually; each builds and pairs the input/output halves atomically. Blender-version rejection is authoritative and the transaction must leave the original tree unchanged.
 
 Never apply after transport-stage validation failure. Script nodes and File Output mutations fail closed in the generic transaction surface; do not evade those safeguards.
+
+## Layout post pass
+
+Every patch that adds nodes or links must be followed by a layout post pass before the graph is considered done. The pass takes the readability conventions from "Author readable generated graphs" and enforces them as hard constraints. A graph is not finished until all five constraints below hold.
+
+1. Export the affected subgraph with `view=layout` (or `view=all` when only a few nodes matter): the exact node locations, dimensions, and frame parents. Export with `node_names` plus `neighbor_depth=1` rather than the whole tree when the tree is large.
+2. Check all five constraints against the exported geometry:
+   - **No overlap.** No two nodes or frames may have intersecting bounding boxes; edge-touching counts as overlap and must be fixed. Every node must sit fully inside its parent frame, otherwise the frame cannot be judged non-overlapping.
+   - **Strictly positive x flow.** Every link must travel in the positive x direction: the source node center x must be strictly less than the target node center x. Never zero or negative.
+   - **One link per Group Input.** Every Group Input node must have exactly one outgoing link: no more, and no fewer. A Group Input with zero links is dead and must be removed; a value needed at several places means one Group Input per place, each with a single link.
+   - **Group Inputs stay near their targets.** Each Group Input must sit to the left of its target socket, not far away: center-to-center x distance strictly positive and no more than about 250 px, with the y center roughly aligned to the target node's row.
+   - **Ordered fan-in.** When a node receives links from several different source nodes into several input sockets, the source nodes must be arranged top to bottom in the same order as the target sockets: the source feeding a higher socket sits no lower than the source feeding a lower one, so no wires cross. Repeated links from one source into several sockets of the same target are exempt.
+3. Fix every violation with `set_node_layout` (`location`, and `parent` when a frame assignment is wrong) in a layout-only patch: validate it with the domain validator, apply it, and read back the changed subgraph.
+4. Confirm zero violations on the read-back before reporting the graph done. If the constraints cannot all be satisfied by moving nodes alone -- for example a link that cannot travel in positive x -- restructure the graph first (reorder stages, rewire, split or re-frame), then run the pass again. Never deliver a graph with a violating layout.
+
+The post pass moves nodes only. It never renames, rewires, or reinterfaces: any structural change needed to satisfy the constraints goes through its own patch.
 
 ## Minimize Python in node workflows
 
