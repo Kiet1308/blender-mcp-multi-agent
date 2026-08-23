@@ -44,6 +44,6 @@ where = ["src"]
 "blender_mcp/schemas" = ["schemas/*.json"]
 
 [project.urls]
-"Homepage" = "https://github.com/newo-ether/blender-mcp"
-"Documentation" = "https://github.com/newo-ether/blender-mcp#readme"
-"Bug Tracker" = "https://github.com/newo-ether/blender-mcp/issues"
+"Homepage" = "https://github.com/Kiet1308/blender-mcp-multi-agent"
+"Documentation" = "https://github.com/Kiet1308/blender-mcp-multi-agent#readme"
+"Bug Tracker" = "https://github.com/Kiet1308/blender-mcp-multi-agent/issues"

@@ -61,6 +61,21 @@ def main():
     deadline = time.monotonic() + args.timeout
     stop_file = Path(args.stop_file)
 
+    if bpy.app.background:
+        # Background Blender does not run a normal timer event loop after the
+        # startup script returns. Poll the bridge queue from this main thread
+        # so the acceptance test exercises real headless command execution.
+        next_heartbeat = time.monotonic() + 2.0
+        while not stop_file.exists() and time.monotonic() < deadline:
+            server.process_headless_commands()
+            now = time.monotonic()
+            if now >= next_heartbeat:
+                server._write_registry_record()
+                next_heartbeat = now + 2.0
+            time.sleep(0.01)
+        addon.unregister()
+        return
+
     def shutdown_tick():
         if not stop_file.exists() and time.monotonic() < deadline:
             return 0.2

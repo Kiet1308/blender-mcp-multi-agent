@@ -13,6 +13,9 @@ Use the connected Blender MCP server as the primary interface for live Blender w
 2. For a conceptual Blender question, answer from reliable knowledge or version-correct documentation without probing the scene.
 3. For a live task, confirm that relevant Blender MCP tools are available. If they are absent, report that Blender MCP is not installed or enabled in this client; do not silently switch to GUI automation.
 4. Call list_blender_instances before inspecting scene state. When one instance is ready, select it; when several are ready, require an explicit instance_id or an exact unique match on visible file/scene metadata. Never choose by port, registry order, foreground window, or recency.
+   For parallel headless workers, pin each MCP process with
+   `BLENDER_MCP_INSTANCE_ID` and keep every agent's writable `.blend` path
+   separate.
 5. Claiming is automatic: the first command of any kind, read or write, claims the single available instance. When several are registered, no command runs until one is named, so select the instance up front rather than after a `multiple_instances_require_selection` error. Respect `manual` and `claimed_by_other_client`; do not bypass a human-reserved Blender window.
 6. Start with the smallest read-only inspection that can identify the target and constraints.
 7. Prefer, in order:

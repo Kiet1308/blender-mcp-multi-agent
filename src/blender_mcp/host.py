@@ -11,6 +11,7 @@ from typing import Any, AsyncIterator, Dict
 from mcp.server.fastmcp import FastMCP
 
 from .observability.telemetry import record_startup
+from .protocol.errors import BlenderMCPError
 from .transport.connection import BlenderConnection
 from .transport.constants import DEFAULT_BRIDGE_HOST, DEFAULT_BRIDGE_PORT
 from .transport.instances import InstanceConnectionManager, discover_registry_records
@@ -45,7 +46,10 @@ BLENDER_MCP_INSTRUCTIONS = (
     "the .blend file unless the user asked. Before handing control back after "
     "a live Blender task, call release_blender_instance even when the task "
     "failed or stopped early. Stop and report a disconnected, "
-    "read-only, or unsupported state instead of guessing."
+    "read-only, or unsupported state instead of guessing. "
+    "In a fleet worker, honor BLENDER_MCP_INSTANCE_ID and never route by "
+    "port or registry order; parallel agents need separate MCP processes "
+    "and separate writable .blend paths."
 )
 
 mcp = FastMCP(
@@ -61,7 +65,11 @@ polyhaven_enabled = False  # Add this global variable
 
 instance_manager = InstanceConnectionManager(
     connection_factory=lambda host, port: BlenderConnection(host=host, port=port),
-    owner_label=os.getenv("BLENDER_MCP_CLIENT_LABEL", "MCP client"),
+    owner_label=(
+        os.getenv("BLENDER_MCP_CLIENT_LABEL")
+        or os.getenv("BLENDER_MCP_AGENT_ID")
+        or "MCP client"
+    ),
 )
 
 
@@ -153,6 +161,19 @@ def get_blender_connection():
                 raise
             logger.info("Selected registered Blender instance %s", instance_manager.active_record["instance_id"])
             return connection
+
+        # An explicitly pinned fleet worker must never silently fall back to
+        # BLENDER_HOST/BLENDER_PORT.  That fallback could connect an agent to
+        # the wrong worker when its assigned Blender has not registered yet.
+        preferred = instance_manager.preferred_instance_id or os.getenv(
+            "BLENDER_MCP_INSTANCE_ID", ""
+        ).strip()
+        if preferred:
+            raise BlenderMCPError(
+                "instance_not_found",
+                f"Configured Blender instance {preferred} was not found",
+                details={"instance_id": preferred},
+            )
 
         host = os.getenv("BLENDER_HOST", DEFAULT_BRIDGE_HOST)
         port = int(os.getenv("BLENDER_PORT", str(DEFAULT_BRIDGE_PORT)))

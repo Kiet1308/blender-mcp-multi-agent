@@ -178,12 +178,19 @@ def discover_registry_records(
 
 @dataclass
 class InstanceConnectionManager:
-    """Discovers many local instances while routing to at most one."""
+    """Discover many instances and route this MCP worker to one exact target.
+
+    A single MCP process still owns one Blender connection, but a fleet of MCP
+    processes can run concurrently. ``BLENDER_MCP_INSTANCE_ID`` makes that
+    routing deterministic: each agent process claims its assigned Blender
+    instance instead of guessing from foreground-window state.
+    """
 
     connection_factory: Callable[[str, int], Any]
     directory: Path | None = None
     client_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     owner_label: str = "MCP client"
+    preferred_instance_id: str = ""
     active: Any = None
     active_record: dict[str, Any] | None = None
     claim_token: str = ""
@@ -194,6 +201,10 @@ class InstanceConnectionManager:
         init=False,
         repr=False,
     )
+
+    def __post_init__(self) -> None:
+        if not self.preferred_instance_id:
+            self.preferred_instance_id = os.getenv("BLENDER_MCP_INSTANCE_ID", "").strip()
 
     def _merge_live_handshake(
         self,
@@ -330,6 +341,32 @@ class InstanceConnectionManager:
             records = discover_registry_records(directory=self.directory)
             if not records:
                 raise BlenderMCPError("no_registered_instances", "No registered Blender instances were found")
+            # Fleet mode is explicit and fail-closed. Every agent process can
+            # set a different instance ID while retaining the complete MCP
+            # tool surface in each process.
+            preferred = self.preferred_instance_id or os.getenv("BLENDER_MCP_INSTANCE_ID", "").strip()
+            if preferred:
+                matches = [item for item in records if item.record.get("instance_id") == preferred]
+                if not matches:
+                    raise BlenderMCPError(
+                        "instance_not_found",
+                        f"Configured Blender instance {preferred} was not found",
+                        details={"instance_id": preferred},
+                    )
+                item = matches[0]
+                if item.status == "manual":
+                    raise BlenderMCPError(
+                        "instance_manual",
+                        f"Configured Blender instance {preferred} has Allow AI control disabled",
+                    )
+                if item.status in {"busy", "claimed_by_other_client"}:
+                    raise BlenderMCPError(
+                        "instance_busy",
+                        f"Configured Blender instance {preferred} is busy",
+                        retryable=True,
+                    )
+                self.claim(preferred)
+                return self.active
             now = time.time()
             owned = [
                 item for item in records
@@ -377,11 +414,14 @@ class InstanceConnectionManager:
                 return {
                     "active": False,
                     "client_id": self.client_id,
+                    "preferred_instance_id": self.preferred_instance_id,
                     "release_required": False,
                 }
             record = self.active_record
             return {
                 "active": True,
+                "client_id": self.client_id,
+                "preferred_instance_id": self.preferred_instance_id,
                 "instance_id": record["instance_id"],
                 "file_session_id": record["file_session_id"],
                 "blend_file": record.get("blend_file") or "Untitled",

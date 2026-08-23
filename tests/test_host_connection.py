@@ -141,6 +141,16 @@ class HostConnectionTests(unittest.TestCase):
             connection = host.get_blender_connection()
         self.assertEqual((connection.host, connection.port), ("localhost", 19876))
 
+    def test_pinned_worker_never_falls_back_to_a_default_endpoint(self):
+        with (
+            patch.object(host, "BlenderConnection", _FakeConnection),
+            patch.object(host, "discover_registry_records", return_value=[]),
+            patch.dict(os.environ, {"BLENDER_MCP_INSTANCE_ID": "missing-worker"}),
+        ):
+            with self.assertRaises(BlenderMCPError) as captured:
+                host.get_blender_connection()
+        self.assertEqual(captured.exception.code, "instance_not_found")
+
     def test_server_startup_does_not_claim_blender(self):
         async def exercise_lifespan():
             with (

@@ -32,6 +32,11 @@ def parse_args():
         default=str(ROOT / "blender_extension" / "__init__.py"),
     )
     parser.add_argument("--timeout", type=float, default=30.0)
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Launch workers with Blender -b instead of GUI mode",
+    )
     return parser.parse_args()
 
 
@@ -91,6 +96,7 @@ def main():
                 log_handles.append(log_handle)
                 command = [
                     str(Path(blender).resolve()),
+                    *(["--background"] if args.headless else []),
                     "--factory-startup",
                     "--disable-autoexec",
                     "--python",

@@ -10,6 +10,7 @@ import time
 import traceback
 import uuid
 from contextlib import suppress
+from queue import Empty, Queue
 
 import bpy
 
@@ -113,6 +114,12 @@ class BridgeLifecycleMixin:
         self.active_tree_type = ""
         self.claim = None
         self.last_claim_end_reason = ""
+        self.headless = bool(getattr(bpy.app, "background", False))
+        # Background Blender exits as soon as the startup Python script
+        # returns, and its timer callbacks are not a reliable event loop in
+        # ``-b`` mode.  The headless launcher polls this queue from Blender's
+        # main Python thread so the full command surface remains safe to use.
+        self._headless_commands = Queue()
         # Blender's timer registry uses callback object identity. Keep one
         # bound-method object for register/is_registered/unregister calls.
         self._heartbeat_callback = self._heartbeat_tick
@@ -215,6 +222,36 @@ class BridgeLifecycleMixin:
                 persistent=True,
             )
         return True
+
+    def process_headless_commands(self, max_commands=16):
+        """Execute queued socket commands on Blender's main thread.
+
+        ``scripts/headless_blender.py`` calls this while it owns the
+        background process loop.  GUI workers continue to use Blender timers,
+        so this method is intentionally a no-op outside background mode.
+        """
+        if not self.headless:
+            return 0
+        processed = 0
+        while processed < max(1, int(max_commands)):
+            try:
+                client, command = self._headless_commands.get_nowait()
+            except Empty:
+                break
+            try:
+                response = self.execute_command(command)
+                client.sendall(json.dumps(response).encode("utf-8"))
+            except Exception as error:
+                print(f"Error executing headless command: {error}")
+                with suppress(Exception):
+                    client.sendall(json.dumps({
+                        "status": "error",
+                        "message": str(error),
+                    }).encode("utf-8"))
+            finally:
+                self._headless_commands.task_done()
+            processed += 1
+        return processed
 
     def rotate_file_session(self):
         self.revoke_claim("file_session_changed")
@@ -422,10 +459,13 @@ class BridgeLifecycleMixin:
         ) or "http://localhost:8081"
 
     def start(self):
+        # Blender's timer API is available in background mode too.  The old
+        # guard here made the full MCP extension GUI-only even though the
+        # bridge already queues every command through ``bpy.app.timers``.
+        # Headless workers now use the exact same server and command surface;
+        # the only difference is that Blender is launched with ``-b``.
         if bpy.app.background:
-            print("BlenderMCP: cannot start server in background mode (blender -b) - commands would never execute\n"
-                  "BlenderMCP: run Blender with a GUI, or use a virtual display: xvfb-run -a blender")
-            return
+            print("BlenderMCP: starting bridge in headless background mode")
 
         if self.running:
             print("Server is already running")
@@ -572,8 +612,13 @@ class BridgeLifecycleMixin:
                                     pass
                             return None
 
-                        # Schedule execution in main thread
-                        bpy.app.timers.register(execute_wrapper, first_interval=0.0)
+                        # GUI Blender has a normal timer event loop.  In
+                        # background mode the launcher polls a queue from the
+                        # main thread instead, which keeps bpy access safe.
+                        if self.headless:
+                            self._headless_commands.put((client, command))
+                        else:
+                            bpy.app.timers.register(execute_wrapper, first_interval=0.0)
                     except json.JSONDecodeError:
                         # Incomplete data, wait for more
                         pass

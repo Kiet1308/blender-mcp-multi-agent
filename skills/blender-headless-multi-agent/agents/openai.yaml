@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blender Headless Multi-agent"
+  short_description: "Run parallel Blender MCP workers without conflicts"
+  default_prompt: "Use $blender-headless-multi-agent to route independent Blender agents safely."

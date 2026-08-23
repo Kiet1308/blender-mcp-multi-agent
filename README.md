@@ -10,6 +10,14 @@ This community fork connects MCP clients to Blender and adds a structured,
 revision-safe workflow for reading and editing Geometry, Shader, and
 Compositor node trees.
 
+It also supports deterministic multi-agent fleets: run one copy of this full
+MCP server per agent and one headless Blender worker per target. Set
+`BLENDER_MCP_RUNTIME_DIR` on every process and pin each MCP process with
+`BLENDER_MCP_INSTANCE_ID`; the worker registry allocates unique local ports and
+the claim lease prevents cross-agent writes. See
+[docs/MULTI_AGENT_HEADLESS.md](docs/MULTI_AGENT_HEADLESS.md) and the compact
+[blender-headless-multi-agent Skill](skills/blender-headless-multi-agent/SKILL.md).
+
 It retains the upstream BlenderMCP scene, object, viewport, asset, and
 model-generation tools while adding:
 

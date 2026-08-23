@@ -39,8 +39,10 @@ class BlenderMcpSkillTests(unittest.TestCase):
         return "\n".join(path.read_text(encoding="utf-8") for path in paths)
 
     def test_canonical_skill_has_portable_frontmatter(self):
-        skill_paths = list((ROOT / "skills").glob("*/SKILL.md"))
-        self.assertEqual(skill_paths, [SKILL_ROOT / "SKILL.md"])
+        # The repository also ships the optional headless fleet Skill. Keep
+        # this assertion focused on the canonical packaged Skill.
+        skill_paths = [SKILL_ROOT / "SKILL.md"]
+        self.assertTrue(skill_paths[0].is_file())
 
         text = skill_paths[0].read_text(encoding="utf-8")
         parts = text.split("---", 2)

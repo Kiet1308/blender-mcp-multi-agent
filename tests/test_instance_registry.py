@@ -121,6 +121,43 @@ class InstanceRegistryTests(unittest.TestCase):
                 manager.auto_select()
             self.assertEqual(captured.exception.code, "multiple_instances_require_selection")
 
+    def test_preferred_instance_auto_selection_is_deterministic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_record(root, "agent-a", 10013)
+            write_record(root, "agent-b", 10014)
+            manager = InstanceConnectionManager(
+                FakeConnection,
+                directory=root,
+                preferred_instance_id="agent-b",
+            )
+            self.assertIs(manager.auto_select(), manager.active)
+            self.assertEqual(manager.active_record["instance_id"], "agent-b")
+            self.assertEqual(manager.active_summary()["preferred_instance_id"], "agent-b")
+
+    def test_preferred_instance_rejects_a_claimed_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_record(
+                root,
+                "agent-busy",
+                10015,
+                claim={
+                    "client_id": "other-agent",
+                    "owner_label": "other-agent",
+                    "expires_at": time.time() + 60,
+                    "token": "other-token",
+                },
+            )
+            manager = InstanceConnectionManager(
+                FakeConnection,
+                directory=root,
+                preferred_instance_id="agent-busy",
+            )
+            with self.assertRaises(BlenderMCPError) as captured:
+                manager.auto_select()
+            self.assertEqual(captured.exception.code, "instance_busy")
+
     def test_claim_enrich_and_release_keep_token_private(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

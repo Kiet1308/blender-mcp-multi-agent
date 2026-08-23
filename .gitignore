@@ -21,6 +21,7 @@ src/blender_mcp/config.py
 # Repository-local test runtimes and scratch output
 .test-runtime/
 .tmp*/
+.headless-test*/
 *.tmp
 *.log
 
