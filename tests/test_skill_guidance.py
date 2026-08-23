@@ -147,6 +147,18 @@ class BlenderMcpSkillTests(unittest.TestCase):
         self.assertIn("read-only work", guidance)
         self.assertIn("failure or early-stop handoffs", guidance)
 
+    def test_canonical_skill_starts_owned_headless_worker(self):
+        guidance = self.canonical_guidance().lower()
+        for required in (
+            "start one automatically in headless mode",
+            "launch_headless_worker.py",
+            "do not ask the user to open blender",
+            "retry discovery once",
+            "worker stop status",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, guidance)
+
     def test_layout_post_pass_hard_constraints(self):
         guidance = self.canonical_guidance().lower()
         for required in (

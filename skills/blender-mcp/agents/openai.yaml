@@ -1,4 +1,4 @@
 interface:
   display_name: "Blender MCP"
   short_description: "Guide safe, structured Blender MCP workflows"
-  default_prompt: "Use $blender-mcp to inspect and update the current Blender scene safely."
+  default_prompt: "Use $blender-mcp to automatically start a headless Blender worker when needed, then inspect and update the scene safely."
