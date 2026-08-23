@@ -26,16 +26,20 @@ Use the connected Blender MCP server as the primary interface for live Blender w
    shell before retrying discovery:
 
    ```powershell
+   $runtime = $env:BLENDER_MCP_RUNTIME_DIR
+   if (-not $runtime) { $runtime = "<private-runtime>" }
    python scripts/launch_headless_worker.py `
-     --runtime-dir <private-runtime> --label <agent-label>
+     --runtime-dir $runtime --label <agent-label>
    ```
 
-   Pass `--blender` when Blender is not on PATH. Wait for the launcher's JSON
-   descriptor, then call list_blender_instances again and claim its exact
-   instance_id. Keep the stop-file path for cleanup. If the launcher is not
-   available, locate the fork checkout or run Blender directly with
-   `scripts/headless_blender.py`; do not hand the task back to the user merely
-   because the GUI is closed.
+   Use the same runtime directory as the MCP process; for parallel agents it
+   is normally one shared private registry directory, with a distinct
+   `BLENDER_MCP_INSTANCE_ID` per MCP process. Pass `--blender` when Blender is
+   not on PATH. Wait for the launcher's JSON descriptor, then call
+   list_blender_instances again and claim its exact instance_id. Keep the
+   stop-file path for cleanup. If the launcher is not available, locate the
+   fork checkout or run Blender directly with `scripts/headless_blender.py`;
+   do not hand the task back to the user merely because the GUI is closed.
 6. Claiming is automatic: the first command of any kind, read or write, claims
    the single available instance. When several are registered, no command runs
    until one is named, so select the instance up front rather than after a
