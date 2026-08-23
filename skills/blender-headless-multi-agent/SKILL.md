@@ -5,15 +5,30 @@ description: Run several independent Blender MCP agents in parallel with headles
 
 # Blender headless multi-agent
 
-Use one full Blender MCP process and one `blender -b` worker per agent.
+The agent owns the lifecycle. Do not ask the user to open Blender manually.
 
-1. Start each worker with `scripts/headless_blender.py` and the same
-   `BLENDER_MCP_RUNTIME_DIR`.
-2. Give every worker its own `.blend` input/output directory and stop file.
-3. Call `list_blender_instances`, then set the matching `instance_id` as
-   `BLENDER_MCP_INSTANCE_ID` in that agent's MCP environment.
-4. Use one MCP entry per agent and a distinct `BLENDER_MCP_AGENT_ID` label.
-5. Release the Blender claim when the task ends.
+1. Create a private workspace for the task and one subdirectory per agent.
+2. Start Blender automatically from the agent shell:
+
+   ```powershell
+   python scripts/launch_headless_worker.py `
+     --blender "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" `
+     --runtime-dir D:/blender-fleet/runtime `
+     --label agent-a
+   ```
+
+   Save the JSON descriptor printed by the launcher. It contains the
+   `instance_id`, registry port, stop file, and log path.
+3. Call `list_blender_instances`, verify the label/file identity, and claim the
+   exact `instance_id`. If the MCP process is started for this agent, set
+   `BLENDER_MCP_INSTANCE_ID` and `BLENDER_MCP_AGENT_ID` before starting it.
+4. Build and verify the model through the full Blender MCP tools. Save only to
+   that agent's own `.blend` and output paths.
+5. Call `release_blender_instance`, then create the launcher's stop file to
+   shut down Blender. Read the worker log if startup or a command fails.
+
+For parallel work, repeat steps 1–5 with distinct labels, directories, MCP
+processes, and writable files. Never reuse a port or route by registry order.
 
 Never share a writable `.blend` or output path between agents. Do not route by
 port or registry order; the pinned instance ID is fail-closed. See

@@ -22,6 +22,8 @@ src/blender_mcp/config.py
 .test-runtime/
 .tmp*/
 .headless-test*/
+.auto-launch-test/
+.auto-complex-test*/
 *.tmp
 *.log
 

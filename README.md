@@ -17,6 +17,8 @@ MCP server per agent and one headless Blender worker per target. Set
 the claim lease prevents cross-agent writes. See
 [docs/MULTI_AGENT_HEADLESS.md](docs/MULTI_AGENT_HEADLESS.md) and the compact
 [blender-headless-multi-agent Skill](skills/blender-headless-multi-agent/SKILL.md).
+Agents can launch Blender themselves with
+`scripts/launch_headless_worker.py`; no manual GUI startup is required.
 
 It retains the upstream BlenderMCP scene, object, viewport, asset, and
 model-generation tools while adding:

@@ -4,21 +4,22 @@ This fork keeps the upstream structured Blender MCP surface. It does not add a
 second reduced MCP server: run one normal MCP process per agent, and point each
 process at one headless Blender worker.
 
-## Start workers
+## Start workers automatically
 
 Use one private runtime directory shared by the workers and MCP processes. Give
 every worker its own `.blend` input/output directory.
 
 ```powershell
-$root = "D:\\blender-mcp-multi-agent"
-$runtime = "$root\\runtime"
-$blender = "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe"
-
-& $blender -b --factory-startup --python D:\\path\\to\\blender-mcp-multi-agent\\scripts\\headless_blender.py -- `
-  --addon D:\\path\\to\\blender-mcp-multi-agent\\blender_extension\\__init__.py `
-  --runtime-dir "$runtime" --label agent-a `
-  --stop-file "$root\\agent-a.stop" --timeout 86400
+python scripts/launch_headless_worker.py `
+  --blender "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" `
+  --runtime-dir D:/blender-mcp-multi-agent/runtime `
+  --label agent-a
 ```
+
+The launcher starts Blender itself, waits for registration, and prints JSON
+containing the `instance_id`, allocated port, stop file, and log path. Repeat it
+with a new label for each agent. Use the printed stop file for cleanup; the
+worker then exits without requiring a GUI.
 
 Repeat the command with a different label, stop file, and project directory
 for `agent-b`, `agent-c`, and so on. The extension allocates a free local port
